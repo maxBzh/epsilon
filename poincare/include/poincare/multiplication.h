@@ -15,6 +15,9 @@ class Multiplication : public DynamicHierarchy {
   friend class Opposite;
   friend class Power;
   friend class Subtraction;
+  friend class Symbol;
+  friend class Complex<float>;
+  friend class Complex<double>;
 public:
   Type type() const override;
   Expression * clone() const override;
@@ -29,6 +32,7 @@ private:
   /* Property */
   Expression * setSign(Sign s, Context & context, AngleUnit angleUnit) override;
   /* Layout */
+  bool operandNeedParenthesis(const Expression * e) const override;
   ExpressionLayout * privateCreateLayout(FloatDisplayMode floatDisplayMode, ComplexFormat complexFormat) const override;
   int writeTextInBuffer(char * buffer, int bufferSize) const override;
   /* Simplification */

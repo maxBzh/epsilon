@@ -22,6 +22,7 @@ void translate_in_special_chars(char * expression) {
       case 'R': *c = Ion::Charset::Root; break;
       case 'P': *c = Ion::Charset::SmallPi; break;
       case '*': *c = Ion::Charset::MultiplicationSign; break;
+      case '>': *c = Ion::Charset::Sto; break;
     }
   }
 }
@@ -35,6 +36,7 @@ void translate_in_ASCII_chars(char * expression) {
       case Ion::Charset::Root: *c = 'R'; break;
       case Ion::Charset::SmallPi: *c = 'P'; break;
       case Ion::Charset::MultiplicationSign: *c = '*'; break;
+      case Ion::Charset::Sto: *c = '>'; break;
     }
   }
 }
@@ -84,7 +86,7 @@ void assert_parsed_expression_simplify_to(const char * expression, const char * 
   cout << "---- Simplify: " << expression << "----"  << endl;
 #endif
   Expression::Simplify(&e, globalContext, angleUnit);
-  char buffer[200];
+  char buffer[500];
   e->writeTextInBuffer(buffer, sizeof(buffer));
   translate_in_ASCII_chars(buffer);
 #if POINCARE_TESTS_PRINT_EXPRESSIONS

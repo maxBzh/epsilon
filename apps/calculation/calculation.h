@@ -6,6 +6,8 @@
 
 namespace Calculation {
 
+class CalculationStore;
+
 class Calculation {
 public:
   Calculation();
@@ -16,24 +18,22 @@ public:
   Calculation& operator=(Calculation&& other) = delete;
   /* c.reset() is the equivalent of c = Calculation() without copy assingment. */
   void reset();
-  void setContent(const char * c, Poincare::Context * context);
+  void setContent(const char * c, Poincare::Context * context, CalculationStore * calculationStore);
   const char * inputText();
-  const char * outputText();
   const char * exactOutputText();
   const char * approximateOutputText();
   Poincare::Expression * input();
   Poincare::ExpressionLayout * inputLayout();
-  Poincare::Expression * output(Poincare::Context * context);
   Poincare::Expression * approximateOutput(Poincare::Context * context);
-  Poincare::ExpressionLayout * outputLayout(Poincare::Context * context);
+  Poincare::Expression * exactOutput(Poincare::Context * context);
   Poincare::ExpressionLayout * exactOutputLayout(Poincare::Context * context);
   Poincare::ExpressionLayout * approximateOutputLayout(Poincare::Context * context);
   bool isEmpty();
   void tidy();
-  bool shouldApproximateOutput();
+  bool shouldDisplayApproximateOutput(Poincare::Context * context);
   constexpr static int k_printedExpressionSize = 2*::TextField::maxBufferSize();
 private:
-  Poincare::Expression * exactOutput(Poincare::Context * context);
+  Poincare::Expression * ansExpression(CalculationStore * calculationStore, Poincare::Context * context);
   /* Buffers holding text expressions have to be longer than the text written
    * by user (of maximum length TextField::maxBufferSize()) because when we
    * print an expression we add omitted signs (multiplications, parenthesis...) */

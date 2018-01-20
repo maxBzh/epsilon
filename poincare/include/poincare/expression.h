@@ -74,6 +74,9 @@ class Expression {
   friend class Trigonometry;
   friend class ApproximationEngine;
   friend class SimplificationEngine;
+  friend class LayoutEngine;
+  friend class Complex<float>;
+  friend class Complex<double>;
 
 public:
   enum class Type : uint8_t {
@@ -155,6 +158,7 @@ public:
 
   /* Constructor & Destructor */
   static Expression * parse(char const * string);
+  static void ReplaceSymbolWithExpression(Expression ** expressionAddress, char symbol, Expression * expression);
   virtual ~Expression() = default;
   virtual Expression * clone() const = 0;
 
@@ -189,9 +193,10 @@ public:
     Positive = 1
   };
   virtual Sign sign() const { return Sign::Unknown; }
-  typedef bool (*ExpressionTest)(const Expression * e);
-  bool recursivelyMatches(ExpressionTest test) const;
-  static bool IsMatrix(const Expression * e);
+  typedef bool (*ExpressionTest)(const Expression * e, Context & context);
+  bool recursivelyMatches(ExpressionTest test, Context & context) const;
+  bool isApproximate(Context & context) const;
+  static bool IsMatrix(const Expression * e, Context & context);
 
   /* Comparison */
   /* isIdenticalTo is the "easy" equality, it returns true if both trees have
@@ -219,7 +224,6 @@ public:
 protected:
   /* Constructor */
   Expression() : m_parent(nullptr) {}
-  static const Expression * const * ExpressionArray(const Expression * e1, const Expression * e2);
   /* Hierarchy */
   void detachOperandAtIndex(int i);
   /* Evaluation Engine */
@@ -242,8 +246,11 @@ protected:
    * interruption to avoid freezing in the simplification process. */
   static int SimplificationOrder(const Expression * e1, const Expression * e2, bool canBeInterrupted = false);
 private:
+  virtual Expression * replaceSymbolWithExpression(char symbol, Expression * expression);
   /* Properties */
   virtual Expression * setSign(Sign s, Context & context, AngleUnit angleUnit) { assert(false); return nullptr; }
+  bool isOfType(Type * types, int length) const;
+  virtual bool operandNeedParenthesis(const Expression * e) const;
   /* Comparison */
   /* In the simplification order, most expressions are compared by only
    * comparing their types. However hierarchical expressions of same type would

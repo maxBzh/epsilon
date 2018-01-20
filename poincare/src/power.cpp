@@ -5,6 +5,7 @@ extern "C" {
 #include <cmath>
 #include <math.h>
 #include <ion.h>
+#include <poincare/binomial_coefficient.h>
 #include <poincare/matrix_inverse.h>
 #include <poincare/matrix.h>
 #include <poincare/power.h>
@@ -21,6 +22,7 @@ extern "C" {
 #include <poincare/subtraction.h>
 #include <poincare/cosine.h>
 #include <poincare/sine.h>
+#include <poincare/simplification_root.h>
 #include "layout/baseline_relative_layout.h"
 
 namespace Poincare {
@@ -111,6 +113,14 @@ template<typename T> Matrix * Power::computeOnMatrixAndComplex(const Matrix * m,
     result = mult;
   }
   return result;
+}
+
+bool Power::operandNeedParenthesis(const Expression * e) const {
+  if (e->type() == Type::Rational && !static_cast<const Rational *>(e)->denominator().isOne()) {
+    return true;
+  }
+  Type types[] = {Type::Power, Type::Division, Type::Multiplication, Type::Addition, Type::Subtraction, Type::Opposite};
+  return e->isOfType(types, 5);
 }
 
 ExpressionLayout * Power::privateCreateLayout(FloatDisplayMode floatDisplayMode, ComplexFormat complexFormat) const {
@@ -357,6 +367,96 @@ Expression * Power::shallowReduce(Context& context, AngleUnit angleUnit) {
       return m->shallowReduce(context, angleUnit);
     }
   }
+
+  // (a0+a1+...am)^n with n integer -> a^n+?a^(n-1)*b+?a^(n-2)*b^2+...+b^n (Multinome)
+  if (!letPowerAtRoot && operand(1)->type() == Type::Rational && static_cast<const Rational *>(operand(1))->denominator().isOne() && operand(0)->type() == Type::Addition) {
+    // Exponent n
+    Rational * nr = static_cast<Rational *>(editableOperand(1));
+    Integer n = nr->numerator();
+    n.setNegative(false);
+    /* if n is above 25, the resulting sum would have more than
+     * k_maxNumberOfTermsInExpandedMultinome terms so we do not expand it. */
+    if (Integer(k_maxNumberOfTermsInExpandedMultinome).isLowerThan(n) || n.isOne()) {
+      return this;
+    }
+    int clippedN = n.extractedInt(); // Authorized because n < k_maxNumberOfTermsInExpandedMultinome
+    // Number of terms in addition m
+    int m = operand(0)->numberOfOperands();
+    /* The multinome (a0+a2+...+a(m-1))^n has BinomialCoefficient(n+m-1,n) terms;
+     * we expand the multinome only when the number of terms in the resulting
+     * sum has less than k_maxNumberOfTermsInExpandedMultinome terms. */
+    if (k_maxNumberOfTermsInExpandedMultinome < BinomialCoefficient::compute(static_cast<double>(clippedN), static_cast<double>(clippedN+m-1))) {
+      return this;
+    }
+    Expression * result = editableOperand(0);
+    Expression * a = result->clone();
+    for (int i = 2; i <= clippedN; i++) {
+      if (result->type() == Type::Addition) {
+        Expression * a0 = new Addition();
+        for (int j = 0; j < a->numberOfOperands(); j++) {
+          Multiplication * m = new Multiplication(result, a->editableOperand(j), true);
+          SimplificationRoot rootM(m); // m need to have a parent when applying distributeOnOperandAtIndex
+          Expression * expandM = m->distributeOnOperandAtIndex(0, context, angleUnit);
+          rootM.detachOperands();
+          if (a0->type() == Type::Addition) {
+            static_cast<Addition *>(a0)->addOperand(expandM);
+          } else {
+            a0 = new Addition(a0, expandM, false);
+          }
+          SimplificationRoot rootA0(a0); // a0 need a parent to be reduced.
+          a0 = a0->shallowReduce(context, angleUnit);
+        }
+        result = result->replaceWith(a0, true);
+      } else {
+        Multiplication * m = new Multiplication(a, result, true);
+        SimplificationRoot root(m);
+        result = result->replaceWith(m->distributeOnOperandAtIndex(0, context, angleUnit), true);
+        result = result->shallowReduce(context, angleUnit);
+      }
+    }
+    delete a;
+    if (nr->sign() == Sign::Negative) {
+      nr->replaceWith(new Rational(-1), true);
+      return shallowReduce(context, angleUnit);
+    } else {
+      return replaceWith(result, true);
+    }
+  }
+#if 0
+  /* We could use the Newton formula instead which is quicker but not immediate
+   * to implement in the general case (Newton multinome). */
+  // (a+b)^n with n integer -> a^n+?a^(n-1)*b+?a^(n-2)*b^2+...+b^n (Newton)
+  if (!letPowerAtRoot && operand(1)->type() == Type::Rational && static_cast<const Rational *>(operand(1))->denominator().isOne() && operand(0)->type() == Type::Addition && operand(0)->numberOfOperands() == 2) {
+    Rational * nr = static_cast<Rational *>(editableOperand(1));
+    Integer n = nr->numerator();
+    n.setNegative(false);
+    if (Integer(k_maxExpandedBinome).isLowerThan(n) || n.isOne()) {
+      return this;
+    }
+    int clippedN = n.extractedInt(); // Authorized because n < k_maxExpandedBinome < k_maxNValue
+    Expression * x0 = editableOperand(0)->editableOperand(0);
+    Expression * x1 = editableOperand(0)->editableOperand(1);
+    Addition * a = new Addition();
+    for (int i = 0; i <= clippedN; i++) {
+      Rational * r = new Rational(static_cast<int>(BinomialCoefficient::compute(static_cast<double>(i), static_cast<double>(clippedN))));
+      Power * p0 = new Power(x0->clone(), new Rational(i), false);
+      Power * p1 = new Power(x1->clone(), new Rational(clippedN-i), false);
+      const Expression * operands[3] = {r, p0, p1};
+      Multiplication * m = new Multiplication(operands, 3, false);
+      p0->shallowReduce(context, angleUnit);
+      p1->shallowReduce(context, angleUnit);
+      a->addOperand(m);
+      m->shallowReduce(context, angleUnit);
+    }
+    if (nr->sign() == Sign::Negative) {
+      nr->replaceWith(new Rational(-1), true);
+      editableOperand(0)->replaceWith(a, true)->shallowReduce(context, angleUnit);
+      return shallowReduce(context, angleUnit);
+    } else {
+      return replaceWith(a, true)->shallowReduce(context, angleUnit);
+    }
+  }
+#endif
   return this;
 }
 

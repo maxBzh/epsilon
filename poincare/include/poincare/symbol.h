@@ -38,8 +38,12 @@ public:
   Sign sign() const override;
   bool isMatrixSymbol() const;
   bool isScalarSymbol() const;
+  bool hasAnExactRepresentation(Context & context) const;
 private:
   const char * textForSpecialSymbols(char name) const;
+  Expression * replaceSymbolWithExpression(char symbol, Expression * expression) override;
+  /* Simplification */
+  Expression * shallowReduce(Context& context, AngleUnit angleUnit) override;
   /* Comparison */
   int simplificationOrderSameType(const Expression * e, bool canBeInterrupted) const override;
   /* Layout */

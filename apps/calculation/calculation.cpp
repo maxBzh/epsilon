@@ -1,4 +1,5 @@
 #include "calculation.h"
+#include "calculation_store.h"
 #include <string.h>
 #include <cmath>
 using namespace Poincare;
@@ -63,9 +64,10 @@ void Calculation::reset() {
   tidy();
 }
 
-void Calculation::setContent(const char * c, Context * context) {
+void Calculation::setContent(const char * c, Context * context, CalculationStore * calculationStore) {
   reset();
   m_input = Expression::parse(c);
+  Expression::ReplaceSymbolWithExpression(&m_input, Symbol::SpecialSymbols::Ans, ansExpression(calculationStore, context));
   /* We do not store directly the text enter by the user but its serialization
    * to be able to compare it to the exact ouput text. */
   m_input->writeTextInBuffer(m_inputText, sizeof(m_inputText));
@@ -78,13 +80,6 @@ void Calculation::setContent(const char * c, Context * context) {
 
 const char * Calculation::inputText() {
   return m_inputText;
-}
-
-const char * Calculation::outputText() {
-  if (shouldApproximateOutput()) {
-    return m_approximateOutputText;
-  }
-  return m_exactOutputText;
 }
 
 const char * Calculation::exactOutputText() {
@@ -107,20 +102,6 @@ ExpressionLayout * Calculation::inputLayout() {
     m_inputLayout = input()->createLayout(Expression::FloatDisplayMode::Decimal, Expression::ComplexFormat::Cartesian);
   }
   return m_inputLayout;
-}
-
-Expression * Calculation::output(Context * context) {
-  if (shouldApproximateOutput()) {
-    return approximateOutput(context);
-  }
-  return exactOutput(context);
-}
-
-ExpressionLayout * Calculation::outputLayout(Context * context) {
-  if (shouldApproximateOutput()) {
-    return approximateOutputLayout(context);
-  }
-  return exactOutputLayout(context);
 }
 
 bool Calculation::isEmpty() {
@@ -207,16 +188,26 @@ ExpressionLayout * Calculation::approximateOutputLayout(Context * context) {
   return m_approximateOutputLayout;
 }
 
-bool Calculation::shouldApproximateOutput() {
+bool Calculation::shouldDisplayApproximateOutput(Context * context) {
   if (strcmp(m_exactOutputText, m_approximateOutputText) == 0) {
     return true;
   }
   if (strcmp(m_exactOutputText, m_inputText) == 0) {
     return true;
   }
-  return input()->recursivelyMatches([](const Expression * e) {
-        return e->type() == Expression::Type::Decimal || Expression::IsMatrix(e) || (e->type() == Expression::Type::Symbol && static_cast<const Symbol *>(e)->isScalarSymbol());
-      });
+  return input()->isApproximate(*context);
+}
+
+Expression * Calculation::ansExpression(CalculationStore * calculationStore, Context * context) {
+  if (calculationStore->numberOfCalculations() == 0) {
+    static Rational defaultExpression(0);
+    return &defaultExpression;
+  }
+  Calculation * lastCalculation = calculationStore->calculationAtIndex(calculationStore->numberOfCalculations()-1);
+  if (lastCalculation->input()->isApproximate(*context)) {
+    return lastCalculation->approximateOutput(context);
+  }
+  return lastCalculation->exactOutput(context);
 }
 
 }

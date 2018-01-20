@@ -1,6 +1,11 @@
 #include <poincare/symbol.h>
 #include <poincare/context.h>
 #include <poincare/complex.h>
+#include <poincare/division.h>
+#include <poincare/layout_engine.h>
+#include <poincare/parenthesis.h>
+#include <poincare/power.h>
+#include <poincare/multiplication.h>
 #include "layout/baseline_relative_layout.h"
 #include "layout/string_layout.h"
 #include <ion.h>
@@ -97,6 +102,17 @@ Expression * Symbol::clone() const {
   return new Symbol(m_name);
 }
 
+Expression * Symbol::replaceSymbolWithExpression(char symbol, Expression * expression) {
+  if (m_name == symbol) {
+    Expression * value = expression->clone();
+    if (parent() && parent()->operandNeedParenthesis(value)) {
+      value = new Parenthesis(value, false);
+    }
+    return replaceWith(value, true);
+  }
+  return this;
+}
+
 Expression::Sign Symbol::sign() const {
   /* TODO: Maybe, we will want to know that from a context given in parameter:
   if (context.expressionForSymbol(this) != nullptr) {
@@ -109,6 +125,24 @@ Expression::Sign Symbol::sign() const {
     return Sign::Positive;
   }
   return Sign::Unknown;
+}
+
+bool Symbol::hasAnExactRepresentation(Context & context) const {
+  // TODO: so far, no symbols can be exact but A, ..Z should be able to hold exact values later.
+  return false;
+}
+
+Expression * Symbol::shallowReduce(Context& context, AngleUnit angleUnit) {
+  // Do not replace symbols in expression of type: 3->A
+  if (parent()->type() == Type::Store && parent()->operand(1) == this) {
+    return this;
+  }
+  const Expression * e = context.expressionForSymbol(this);
+  if (e != nullptr && hasAnExactRepresentation(context)) { // TODO: later A...Z should be replaced.
+    /* The stored expression had been beautified which forces to call deepReduce. */
+    return replaceWith(e->clone(), true)->deepReduce(context, angleUnit);
+  }
+  return this;
 }
 
 template<typename T>
