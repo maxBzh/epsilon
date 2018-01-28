@@ -78,6 +78,9 @@ void print_expression(const Expression * e, int indentationLevel) {
     case Expression::Type::DivisionRemainder:
       std::cout << "DivisionRemainder";
       break;
+    case Expression::Type::Factor:
+      std::cout << "Factor";
+      break;
     case Expression::Type::Factorial:
       std::cout << "Factorial";
       break;
@@ -165,6 +168,12 @@ void print_expression(const Expression * e, int indentationLevel) {
       break;
     case Expression::Type::Product:
       std::cout << "Product";
+      break;
+    case Expression::Type::Random:
+      std::cout << "Random";
+      break;
+    case Expression::Type::Randint:
+      std::cout << "Randint";
       break;
     case Expression::Type::Rational:
       std::cout << "Rational(";

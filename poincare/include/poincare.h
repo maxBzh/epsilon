@@ -25,6 +25,7 @@
 #include <poincare/expression.h>
 #include <poincare/expression_array.h>
 #include <poincare/expression_layout.h>
+#include <poincare/factor.h>
 #include <poincare/factorial.h>
 #include <poincare/floor.h>
 #include <poincare/frac_part.h>
@@ -55,6 +56,8 @@
 #include <poincare/prediction_interval.h>
 #include <poincare/preferences.h>
 #include <poincare/product.h>
+#include <poincare/randint.h>
+#include <poincare/random.h>
 #include <poincare/rational.h>
 #include <poincare/real_part.h>
 #include <poincare/round.h>

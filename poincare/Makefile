@@ -29,6 +29,7 @@ objs += $(addprefix poincare/src/,\
   expression_lexer.o\
   expression_parser.o\
   expression.o\
+  factor.o\
   factorial.o\
   floor.o\
   frac_part.o\
@@ -63,6 +64,8 @@ objs += $(addprefix poincare/src/,\
   prediction_interval.o\
   preferences.o\
   product.o\
+  randint.o\
+  random.o\
   rational.o\
   real_part.o\
   round.o\
